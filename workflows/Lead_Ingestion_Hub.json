@@ -1,0 +1,191 @@
+{
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "01234567-89ab-cdef-0123-456789abcdef",
+      "name": "Start",
+      "type": "n8n-nodes-base.start",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "path": "webform",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "12345678-90ab-cdef-1234-567890abcdef",
+      "name": "Web Form Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        450,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "email",
+              "value": "={{ $json[\"email\"] || $json[\"Email\"] || \"\" }}"
+            },
+            {
+              "name": "name",
+              "value": "={{ $json[\"name\"] || $json[\"Name\"] || $json[\"full_name\"] || \"\" }}"
+            },
+            {
+              "name": "source",
+              "value": "={{ $json[\"source\"] || \"Web Form\" }}"
+            },
+            {
+              "name": "timestamp",
+              "value": "={{ new Date().toISOString() }}"
+            },
+            {
+              "name": "status",
+              "value": "new"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "23456789-01ab-cdef-2345-678901abcdef",
+      "name": "Normalize Web Form Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        650,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "YOUR_GOOGLE_SHEET_ID", 
+        "sheetName": "Sheet1", 
+        "columns": {
+          "mapping": [
+            {
+              "inputValue": "={{ $json[\"email\"].toLowerCase() }}",
+              "outputValue": "Email"
+            },
+            {
+              "inputValue": "={{ $json[\"name\"] }}",
+              "outputValue": "Name"
+            },
+            {
+              "inputValue": "={{ $json[\"source\"] }}",
+              "outputValue": "Source"
+            },
+            {
+              "inputValue": "={{ $json[\"timestamp\"] }}",
+              "outputValue": "Timestamp"
+            },
+            {
+              "inputValue": "={{ $json[\"status\"] }}",
+              "outputValue": "Status"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "34567890-12ab-cdef-3456-789012abcdef",
+      "name": "Append to Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [
+        850,
+        250
+      ],
+      "credentials": {
+        "googleSheetsApi": "Your Google Sheets Credential Name"
+      }
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyX",
+              "value": 5,
+              "unit": "minutes"
+            }
+          ]
+        },
+        "documentId": "YOUR_GOOGLE_SHEET_ID", 
+        "sheetName": "Sheet1", 
+        "filtersUi": {
+          "values": [
+            {
+              "leftValue": "Status",
+              "rightValue": "new",
+              "operator": "equals"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "45678901-23ab-cdef-4567-890123abcdef",
+      "name": "Poll New Leads",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        450,
+        400
+      ],
+      "credentials": {
+        "googleSheetsApi": "Your Google Sheets Credential Name"
+      }
+    }
+  ],
+  "connections": {
+    "Web Form Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalize Web Form Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Web Form Data": {
+      "main": [
+        [
+          {
+            "node": "Append to Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Poll New Leads": {
+      "main": [
+        [
+          {
+            "node": "Process Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "meta": {
+    "instanceId": "z1y2x3w4-v5u6-7890-tsrq-ponmlkjihgfe"
+  },
+  "id": "abc123def456ghi789jkl012"
+}

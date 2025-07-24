@@ -1,0 +1,111 @@
+{
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "34567890-12ab-cdef-3456-789012abcdef",
+      "name": "Start",
+      "type": "n8n-nodes-base.start",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json[\"Lead_Score\"] }}",
+              "value2": 60,
+              "operation": "lessThan"
+            }
+          ]
+        }
+      },
+      "id": "45678901-23ab-cdef-4567-890123abcdef",
+      "name": "Is Nurturing Lead?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "list": "YOUR_MAILCHIMP_AUDIENCE_ID", 
+        "email": "={{ $json[\"Email\"] }}",
+        "mergeFields": {
+          "values": [
+            {
+              "key": "FNAME",
+              "value": "={{ $json[\"Name\"].split(' ')[0] }}"
+            },
+            {
+              "key": "COMPANY",
+              "value": "={{ $json[\"Company\"] }}"
+            },
+            {
+              "key": "LEADSCORE",
+              "value": "={{ $json[\"Lead_Score\"] }}"
+            }
+          ]
+        },
+        "tags": {
+          "values": [
+            {
+              "name": "=nurturing_sequence"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "56789012-34ab-cdef-5678-901234abcdef",
+      "name": "Add to Nurturing List",
+      "type": "n8n-nodes-base.mailchimp",
+      "typeVersion": 1,
+      "position": [
+        650,
+        300
+      ],
+      "credentials": {
+        "mailchimpApi": "Your Mailchimp Credential Name"
+      }
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Is Nurturing Lead?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Nurturing Lead?": {
+      "main": [
+        [
+          {
+            "node": "Add to Nurturing List",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d4e5f6a7-b8c9-0123-def0-123456789012",
+  "meta": {
+    "instanceId": "w4v5u6t7-s8r9-0123-qpon-mlkjihgfedcb"
+  },
+  "id": "jkl012mno345pqr678stu901"
+}

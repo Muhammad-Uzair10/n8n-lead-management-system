@@ -1,0 +1,314 @@
+{
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "45678901-23ab-cdef-4567-890123abcdef",
+      "name": "Start",
+      "type": "n8n-nodes-base.start",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json[\"Lead_Score\"] }}",
+              "value2": 80,
+              "operation": "greaterThan"
+            }
+          ]
+        }
+      },
+      "id": "56789012-34ab-cdef-5678-901234abcdef",
+      "name": "Is Hot Lead?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Simple Round Robin (In production, use a database counter)\nconst salesReps = ['rep1@yourcompany.com', 'rep2@yourcompany.com', 'rep3@yourcompany.com'];\nconst leadIndex = Math.floor(Math.random() * salesReps.length); // Replace with DB counter logic\nconst assignedRep = salesReps[leadIndex];\n\nreturn [{ json: { ...$json, assigned_to: assignedRep } }];"
+      },
+      "id": "67890123-45ab-cdef-6789-012345abcdef",
+      "name": "Assign Sales Rep",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        650,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "channel": "=directmessage:{{ $json[\"assigned_to\"] }}", 
+        "text": "=*🔥 HOT LEAD ALERT*\n*Name:* {{ $json[\"Name\"] }}\n*Email:* {{ $json[\"Email\"] }}\n*Company:* {{ $json[\"Company\"] }}\n*Score:* {{ $json[\"Lead_Score\"] }}/100\n*Source:* {{ $json[\"Source\"] }}\n\nPlease follow up immediately!",
+        "otherOptions": {}
+      },
+      "id": "78901234-56ab-cdef-7890-123456abcdef",
+      "name": "Send Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        850,
+        250
+      ],
+      "credentials": {
+        "slackApi": "Your Slack Credential Name"
+      }
+    },
+    {
+      "parameters": {
+        "resource": "lead",
+        "operation": "create",
+        "lastName": "={{ $json[\"Name\"].split(' ').pop() }}",
+        "firstName": "={{ $json[\"Name\"].split(' ').slice(0, -1).join(' ') }}",
+        "company": "={{ $json[\"Company\"] }}",
+        "email": "={{ $json[\"Email\"] }}",
+        "leadSource": "={{ $json[\"Source\"] }}",
+        "customFieldsUi": {
+          "customFieldsValues": [
+            {
+              "fieldName": "Lead_Score__c", 
+              "fieldValue": "={{ $json[\"Lead_Score\"] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "89012345-67ab-cdef-8901-234567abcdef",
+      "name": "Create Lead in Salesforce",
+      "type": "n8n-nodes-base.salesforce",
+      "typeVersion": 1,
+      "position": [
+        1050,
+        250
+      ],
+      "credentials": {
+        "salesforceOAuth2Api": "Your Salesforce Credential Name"
+      }
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "crm_id",
+              "value": "={{ $json[\"id\"] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "90123456-78ab-cdef-9012-345678abcdef",
+      "name": "Extract CRM ID",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": "YOUR_GOOGLE_SHEET_ID", 
+        "sheetName": "Sheet1", 
+        "keyRow": 1,
+        "columns": {
+          "mapping": [
+            {
+              "inputValue": "={{ $json[\"Email\"].toLowerCase() }}",
+              "outputValue": "Email"
+            },
+            {
+              "inputValue": "={{ $json[\"crm_id\"] }}",
+              "outputValue": "CRM_ID"
+            },
+            {
+              "inputValue": "={{ $json[\"assigned_to\"] }}",
+              "outputValue": "Assigned_To"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "01234567-89ab-cdef-0123-456789abcdef",
+      "name": "Update Google Sheet with CRM ID",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [
+        1450,
+        250
+      ],
+      "credentials": {
+        "googleSheetsApi": "Your Google Sheets Credential Name"
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json[\"Lead_Score\"] }}",
+              "value2": 40,
+              "operation": "greaterThan"
+            }
+          ]
+        }
+      },
+      "id": "12345678-90ab-cdef-1234-567890abcdef",
+      "name": "Is Nurturable Lead?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        650,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "list": "YOUR_MAILCHIMP_AUDIENCE_ID", 
+        "email": "={{ $json[\"Email\"] }}",
+        "mergeFields": {
+          "values": [
+            {
+              "key": "FNAME",
+              "value": "={{ $json[\"Name\"].split(' ')[0] }}"
+            },
+            {
+              "key": "COMPANY",
+              "value": "={{ $json[\"Company\"] }}"
+            },
+            {
+              "key": "LEADSCORE",
+              "value": "={{ $json[\"Lead_Score\"] }}"
+            }
+          ]
+        },
+        "tags": {
+          "values": [
+            {
+              "name": "=score_{{ Math.floor($json[\"Lead_Score\"] / 20) * 20 }}_{{ Math.floor($json[\"Lead_Score\"] / 20) * 20 + 19 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "23456789-01ab-cdef-2345-678901abcdef",
+      "name": "Add to Mailchimp Audience",
+      "type": "n8n-nodes-base.mailchimp",
+      "typeVersion": 1,
+      "position": [
+        850,
+        400
+      ],
+      "credentials": {
+        "mailchimpApi": "Your Mailchimp Credential Name"
+      }
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Is Hot Lead?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Hot Lead?": {
+      "main": [
+        [
+          {
+            "node": "Assign Sales Rep",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Nurturable Lead?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assign Sales Rep": {
+      "main": [
+        [
+          {
+            "node": "Send Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Slack Alert": {
+      "main": [
+        [
+          {
+            "node": "Create Lead in Salesforce",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Lead in Salesforce": {
+      "main": [
+        [
+          {
+            "node": "Extract CRM ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract CRM ID": {
+      "main": [
+        [
+          {
+            "node": "Update Google Sheet with CRM ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Nurturable Lead?": {
+      "main": [
+        [
+          {
+            "node": "Add to Mailchimp Audience",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "c3d4e5f6-a7b8-9012-cdef-012345678901",
+  "meta": {
+    "instanceId": "x3w4v5u6-t7s8-9012-rqpo-nmlkjihgfedc"
+  },
+  "id": "ghi789jkl012mno345pqr678"
+}

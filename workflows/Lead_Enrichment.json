@@ -1,0 +1,345 @@
+{
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "56789012-34ab-cdef-5678-901234abcdef",
+      "name": "Start",
+      "type": "n8n-nodes-base.start",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "email",
+              "value": "={{ $json[\"Email\"] }}"
+            },
+            {
+              "name": "name",
+              "value": "={{ $json[\"Name\"] }}"
+            },
+            {
+              "name": "source",
+              "value": "={{ $json[\"Source\"] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "67890123-45ab-cdef-6789-012345abcdef",
+      "name": "Extract Core Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "requestMethod": "GET",
+        "url": "=https://person.clearbit.com/v2/combined/find?email={{ $json[\"email\"] }}",
+        "authentication": "generic",
+        "genericAuthType": "httpHeaderAuth",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendQuery": false,
+        "sendHeaders": false,
+        "sendBody": false,
+        "options": {
+          "responseFormat": "json"
+        }
+      },
+      "id": "78901234-56ab-cdef-7890-123456abcdef",
+      "name": "Clearbit Enrichment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        650,
+        250
+      ],
+      "credentials": {
+        "httpHeaderAuth": "Clearbit Auth"
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json[\"error\"] }}",
+              "value2": "",
+              "operation": "notEquals"
+            }
+          ]
+        }
+      },
+      "id": "89012345-67ab-cdef-8901-234567abcdef",
+      "name": "Is Clearbit Error?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        850,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "https://api.apollo.io/v1/people/match",
+        "authentication": "generic",
+        "genericAuthType": "httpHeaderAuth",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyContentType": "raw",
+        "rawBody": "={\"email\": \"{{ $json[\"email\"] }}\"}",
+        "options": {
+          "responseFormat": "json"
+        }
+      },
+      "id": "90123456-78ab-cdef-9012-345678abcdef",
+      "name": "Apollo Fallback",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1050,
+        250
+      ],
+      "credentials": {
+        "httpHeaderAuth": "Apollo Auth"
+      }
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "company",
+              "value": "={{ $json[\"company\"][\"name\"] || $json[\"person\"][\"organization\"][\"name\"] || \"\" }}"
+            },
+            {
+              "name": "company_size",
+              "value": "={{ $json[\"company\"][\"metrics\"][\"employees\"] || $json[\"person\"][\"organization\"][\"estimated_num_employees\"] || \"\" }}"
+            },
+            {
+              "name": "tech_stack",
+              "value": "={{ $json[\"company\"][\"tech\"] || $json[\"person\"][\"organization\"][\"technologies\"] || [] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "01234567-89ab-cdef-0123-456789abcdef",
+      "name": "Parse Clearbit Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        750,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "company",
+              "value": "={{ $json[\"person\"][\"organization\"][\"name\"] || \"\" }}"
+            },
+            {
+              "name": "company_size",
+              "value": "={{ $json[\"person\"][\"organization\"][\"estimated_num_employees\"] || \"\" }}"
+            },
+            {
+              "name": "tech_stack",
+              "value": "={{ $json[\"person\"][\"organization\"][\"technologies\"] || [] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "12345678-90ab-cdef-1234-567890abcdef",
+      "name": "Parse Apollo Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        1150,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Lead Scoring Algorithm\nconst enrichmentData = $json;\n// Placeholder engagement data - you'd fetch this from analytics or pass it in\nconst engagementData = { page_visits: 3, time_on_page: 90, clicked_pricing: false };\n\n// Demographic scoring (50% weight)\nlet demographicScore = 0;\nconst companySize = parseInt(enrichmentData.company_size);\nif (companySize > 1000) demographicScore += 20;\nelse if (companySize > 500) demographicScore += 15;\nelse if (companySize > 100) demographicScore += 10;\n\nif (Array.isArray(enrichmentData.tech_stack) && enrichmentData.tech_stack.includes('your_product_keyword')) demographicScore += 25;\n\n// Behavioral scoring (50% weight)\nlet behavioralScore = 0;\nif (engagementData.page_visits > 5) behavioralScore += 20;\nelse if (engagementData.page_visits > 2) behavioralScore += 10;\nelse behavioralScore += 5;\n\nif (engagementData.time_on_page > 120) behavioralScore += 15;\nif (engagementData.clicked_pricing) behavioralScore += 25;\n\n// Hot trigger modifiers\nlet hotTriggers = 0;\nif (enrichmentData.source === 'paid') hotTriggers += 10;\nif (engagementData.clicked_demo) hotTriggers += 10;\nif (companySize > 1000) hotTriggers += 10;\n\nconst leadScore = Math.min(100, (demographicScore * 0.5) + (behavioralScore * 0.5) + hotTriggers);\n\nreturn [{ json: { ...enrichmentData, lead_score: leadScore } }];"
+      },
+      "id": "23456789-01ab-cdef-2345-678901abcdef",
+      "name": "Calculate Lead Score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1350,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": "YOUR_GOOGLE_SHEET_ID", 
+        "sheetName": "Sheet1", 
+        "keyRow": 1,
+        "columns": {
+          "mapping": [
+            {
+              "inputValue": "={{ $json[\"email\"].toLowerCase() }}",
+              "outputValue": "Email"
+            },
+            {
+              "inputValue": "={{ $json[\"company\"] }}",
+              "outputValue": "Company"
+            },
+            {
+              "inputValue": "={{ $json[\"company_size\"] }}",
+              "outputValue": "Company_Size"
+            },
+            {
+              "inputValue": "={{ JSON.stringify($json[\"tech_stack\"]) }}",
+              "outputValue": "Tech_Stack"
+            },
+            {
+              "inputValue": "={{ $json[\"lead_score\"] }}",
+              "outputValue": "Lead_Score"
+            },
+            {
+              "inputValue": "processed",
+              "outputValue": "Status"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "34567890-12ab-cdef-3456-789012abcdef",
+      "name": "Update Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [
+        1550,
+        300
+      ],
+      "credentials": {
+        "googleSheetsApi": "Your Google Sheets Credential Name"
+      }
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Extract Core Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Core Data": {
+      "main": [
+        [
+          {
+            "node": "Clearbit Enrichment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clearbit Enrichment": {
+      "main": [
+        [
+          {
+            "node": "Is Clearbit Error?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Clearbit Error?": {
+      "main": [
+        [
+          {
+            "node": "Parse Clearbit Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Apollo Fallback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apollo Fallback": {
+      "main": [
+        [
+          {
+            "node": "Parse Apollo Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Clearbit Data": {
+      "main": [
+        [
+          {
+            "node": "Calculate Lead Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Apollo Data": {
+      "main": [
+        [
+          {
+            "node": "Calculate Lead Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Lead Score": {
+      "main": [
+        [
+          {
+            "node": "Update Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "b2c3d4e5-f6a7-8901-bcde-f01234567890",
+  "meta": {
+    "instanceId": "y2x3w4v5-u6t7-8901-srqp-onmlkjihgfed"
+  },
+  "id": "def456ghi789jkl012mno345"
+}
